@@ -25,8 +25,12 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
   const hasChildren = menu.children.length > 0
   const paddingLeft = 12 + depth * 16
 
-  const rowClasses =
-    'flex items-center gap-2 rounded-md py-2 text-sm text-ink hover:bg-line/60 transition'
+  // Color classes are intentionally never combined with a conflicting text-ink/text-accent-ink pair
+  // on the same element — Tailwind's generated stylesheet order (not className order) decides which
+  // wins, so mixing them can silently render invisible (black-on-black) text.
+  const baseRowClasses = 'flex items-center gap-2 rounded-md py-2 text-sm transition'
+  const inactiveRowClasses = `${baseRowClasses} text-ink hover:bg-line/60`
+  const activeRowClasses = `${baseRowClasses} bg-accent text-accent-ink`
 
   if (menu.menuType === 'GROUP') {
     return (
@@ -34,7 +38,7 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className={`${rowClasses} w-full text-left font-medium`}
+          className={`${inactiveRowClasses} w-full text-left font-medium`}
           style={{ paddingLeft }}
         >
           {hasChildren && (expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
@@ -59,7 +63,7 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
           href={menu.targetUrl ?? '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className={rowClasses}
+          className={inactiveRowClasses}
           style={{ paddingLeft }}
         >
           <MenuIcon name={menu.icon} size={16} />
@@ -76,9 +80,7 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
     <li>
       <NavLink
         to={to}
-        className={({ isActive }) =>
-          `${rowClasses} ${isActive ? 'bg-accent text-accent-ink hover:bg-accent' : ''}`
-        }
+        className={({ isActive }) => (isActive ? activeRowClasses : inactiveRowClasses)}
         style={{ paddingLeft }}
       >
         <MenuIcon name={menu.icon} size={16} />
