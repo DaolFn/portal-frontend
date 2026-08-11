@@ -36,10 +36,17 @@ export function findMenuForPathname(nodes: MenuNode[], pathname: string): MenuNo
   return flattenMenus(nodes).find((node) => node.menuType === 'INTERNAL' && node.targetUrl === pathname)
 }
 
-/** First INTERNAL/EMBED descendant in DFS order — used as the landing page when a top-level GROUP is clicked. */
+/** LINK menus normally leave the SPA (new tab or full navigation), but a LINK set to render as an
+ * iframe behaves exactly like EMBED — same /embed/:menuId route, same in-app navigation. */
+function isIframeRoute(node: MenuNode): boolean {
+  return node.menuType === 'EMBED' || (node.menuType === 'LINK' && node.openMode === 'IFRAME')
+}
+
+/** First INTERNAL/EMBED (or iframe-mode LINK) descendant in DFS order — used as the landing page
+ * when a top-level GROUP is clicked. */
 export function findFirstNavigableDescendant(node: MenuNode): MenuNode | undefined {
   for (const child of node.children) {
-    if (child.menuType === 'INTERNAL' || child.menuType === 'EMBED') return child
+    if (child.menuType === 'INTERNAL' || isIframeRoute(child)) return child
     const nested = findFirstNavigableDescendant(child)
     if (nested) return nested
   }
@@ -47,7 +54,7 @@ export function findFirstNavigableDescendant(node: MenuNode): MenuNode | undefin
 }
 
 export function routeForMenu(node: MenuNode): string | null {
-  if (node.menuType === 'EMBED') return `/embed/${node.menuId}`
+  if (isIframeRoute(node)) return `/embed/${node.menuId}`
   if (node.menuType === 'INTERNAL') return node.targetUrl
   return null
 }

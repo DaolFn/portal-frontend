@@ -54,15 +54,26 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
         {label}
       </button>
     )
-  } else if (menu.menuType === 'LINK') {
-    content = (
-      <a href={menu.targetUrl ?? '#'} target="_blank" rel="noopener noreferrer" className={inactiveRowClasses}>
-        {label}
-      </a>
-    )
+  } else if (menu.menuType === 'LINK' && menu.openMode !== 'IFRAME') {
+    // NEW_TAB opens a separate tab; SELF navigates the current tab away from the SPA entirely —
+    // both leave the app, they only differ in whether the current tab survives.
+    content =
+      menu.openMode === 'SELF' ? (
+        <a href={menu.targetUrl ?? '#'} className={inactiveRowClasses}>
+          {label}
+        </a>
+      ) : (
+        <a href={menu.targetUrl ?? '#'} target="_blank" rel="noopener noreferrer" className={inactiveRowClasses}>
+          {label}
+        </a>
+      )
   } else {
-    // INTERNAL and EMBED both resolve to an in-app route (EMBED renders the shared /embed/:menuId page).
-    const to = menu.menuType === 'EMBED' ? `/embed/${menu.menuId}` : menu.targetUrl ?? '#'
+    // INTERNAL, EMBED, and IFRAME-mode LINK all resolve to an in-app route (EMBED/IFRAME-LINK
+    // render the shared /embed/:menuId page with the target URL in an <iframe>).
+    const to =
+      menu.menuType === 'EMBED' || (menu.menuType === 'LINK' && menu.openMode === 'IFRAME')
+        ? `/embed/${menu.menuId}`
+        : menu.targetUrl ?? '#'
     content = (
       <NavLink
         to={to}

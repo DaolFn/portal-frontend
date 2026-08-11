@@ -53,11 +53,14 @@ src/
 ### 3.2 상단(대메뉴) + 좌측(중/소메뉴) 2단 구조
 
 - **`TopNav`**: 트리의 depth-0(최상위) 노드들을 가로로 나열한다. 클릭하면:
-  - `LINK` → 새 탭으로 열고 끝 (화면 전환 없음)
-  - `GROUP` → 그 안에서 DFS로 찾은 첫 `INTERNAL`/`EMBED` 자손으로 이동 (`findFirstNavigableDescendant`, `features/menu/menuTree.ts`)
+  - `LINK` → `openMode`에 따라 분기한다: `NEW_TAB`은 `window.open(...,'_blank',...)`, `SELF`는 `window.location.href`로 현재 탭 자체를 그 URL로 보내버림(SPA를 완전히 떠남), `IFRAME`은 `EMBED`와 동일하게 `/embed/:menuId` 라우트로 in-app 네비게이션한다.
+    - **주의**: `openMode`는 DB/폼에는 있지만 예전엔 `Sidebar`/`TopNav` 어디서도 실제로 읽지 않고 LINK는 항상 새 탭으로 하드코딩되어 있었다(2026-08-12에 고침) — `openMode`를 다루는 코드를 건드릴 때는 세 값 전부(`SELF`/`NEW_TAB`/`IFRAME`) 실제 브라우저 동작까지 확인할 것, 폼에 값이 저장되는 것만 확인하고 끝내면 이 버그가 재발한다.
+  - `GROUP` → 그 안에서 DFS로 찾은 첫 `INTERNAL`/`EMBED`(또는 `openMode=IFRAME`인 `LINK`) 자손으로 이동 (`findFirstNavigableDescendant`, `features/menu/menuTree.ts`)
   - `INTERNAL`/`EMBED` → 자기 라우트로 바로 이동
+  - `routeForMenu()`(`features/menu/menuTree.ts`)가 "이 메뉴가 in-app 라우트를 갖는가"의 단일 판단 지점이다 — `EMBED`이거나 `LINK`+`openMode=IFRAME`이면 `/embed/:menuId`, `INTERNAL`이면 자기 `targetUrl`, 나머지는 `null`. `Sidebar`/`TopNav`가 각자 따로 이 판단을 반복하지 않도록 여기서만 정의한다.
 - **`Sidebar`**: "현재 활성 대메뉴"의 `children`만 받아서 재귀적으로 그린다(중메뉴 아래에 또 자식이 있으면 소메뉴로 펼쳐짐). 대메뉴 자체가 자식이 없으면(리프) `AppLayout`이 `Sidebar`를 렌더링하지 않는다.
   - 자식 유무(`hasChildren`)와 메뉴 타입은 서로 독립이다 — `GROUP`뿐 아니라 `LINK`/`INTERNAL`/`EMBED`도 자식을 가질 수 있다(예: 그 자체로 이동 가능한 메뉴 밑에 소메뉴가 달린 경우). 그래서 접기/펼치기 화살표(`ChevronDown`/`ChevronRight`)는 `content`(GROUP 버튼 / LINK `<a>` / `NavLink`)와 **형제 엘리먼트**로 렌더링하고, `hasChildren`이면 무조건 보여준다 — 특정 `menuType`일 때만 그리는 게 아니다. 화살표를 눌러도 이동은 하지 않고 그 메뉴의 `expanded` 로컬 state만 토글한다(각 메뉴 노드가 자기 펼침 상태를 갖는 재귀 컴포넌트 구조).
+  - `LINK`의 `content`도 `TopNav`와 동일하게 `openMode`로 분기한다 — `openMode !== 'IFRAME'`이면 `<a>`(`SELF`는 `target` 없이 현재 탭에서, 그 외엔 `target="_blank"`), `IFRAME`이면 `EMBED`와 같은 취급으로 `/embed/:menuId`를 향한 `NavLink`가 된다.
   - 화살표를 내비게이션 엘리먼트(`<a>`/`<button>`/`NavLink`) **안에 중첩시키면 안 된다** — `<button>` 안에 `<button>`을 넣는 잘못된 HTML이 되고 클릭 이벤트도 뒤섞인다. 항상 `<div className="flex items-center">화살표 + content</div>` 형태로 나란히 둔다.
   - 이건 메뉴 항목 하나씩 접는 기능이고, `Sidebar` 패널 전체를 접는 것과는 별개다 — 전체 접기는 바로 아래 항목 참고.
 

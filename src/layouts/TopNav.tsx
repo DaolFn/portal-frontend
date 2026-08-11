@@ -14,7 +14,13 @@ export function TopNav({ menus, activeTopMenuId }: TopNavProps) {
 
   function handleClick(menu: MenuNode) {
     if (menu.menuType === 'LINK') {
-      window.open(menu.targetUrl ?? '#', '_blank', 'noopener,noreferrer')
+      if (menu.openMode === 'IFRAME') {
+        navigate(`/embed/${menu.menuId}`)
+      } else if (menu.openMode === 'SELF') {
+        window.location.href = menu.targetUrl ?? '#'
+      } else {
+        window.open(menu.targetUrl ?? '#', '_blank', 'noopener,noreferrer')
+      }
       return
     }
     const route = routeForMenu(menu) ?? (findFirstNavigableDescendant(menu) && routeForMenu(findFirstNavigableDescendant(menu)!))
