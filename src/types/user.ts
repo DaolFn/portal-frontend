@@ -7,6 +7,20 @@ export interface UserSummary {
   roles: string[]
 }
 
+export interface MyProfile {
+  userId: number
+  loginId: string
+  userName: string
+  email: string | null
+  deptCode: string | null
+  roles: string[]
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
+}
+
 export interface UserAdmin {
   userId: number
   loginId: string

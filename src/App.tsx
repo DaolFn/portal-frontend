@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from './layouts/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { HomePage } from './pages/HomePage'
+import { MyPage } from './pages/MyPage'
 import { EmbedPage } from './pages/EmbedPage'
 import { MenuManagerPage } from './pages/admin/MenuManagerPage'
 import { RoleManagerPage } from './pages/admin/RoleManagerPage'
@@ -43,6 +44,7 @@ export default function App() {
         }
       >
         <Route index element={<HomePage />} />
+        <Route path="me" element={<MyPage />} />
         <Route path="embed/:menuId" element={<EmbedPage />} />
         <Route path="admin/menus" element={<MenuManagerPage />} />
         <Route path="admin/roles" element={<RoleManagerPage />} />

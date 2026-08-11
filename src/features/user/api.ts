@@ -1,5 +1,30 @@
 import { httpClient } from '../../lib/httpClient'
-import type { Page, UserAdmin, UserCreateInput, UserUpdateInput } from '../../types/user'
+import type {
+  ChangePasswordInput,
+  MyProfile,
+  Page,
+  UserAdmin,
+  UserCreateInput,
+  UserUpdateInput,
+} from '../../types/user'
+
+// -- self-service (any authenticated user, not just ADMIN) -----------------
+
+export async function fetchMyProfile(): Promise<MyProfile> {
+  const { data } = await httpClient.get<MyProfile>('/api/users/me')
+  return data
+}
+
+export async function updateMyProfile(input: UserUpdateInput): Promise<MyProfile> {
+  const { data } = await httpClient.put<MyProfile>('/api/users/me', input)
+  return data
+}
+
+export async function changeMyPassword(input: ChangePasswordInput): Promise<void> {
+  await httpClient.put('/api/users/me/password', input)
+}
+
+// -- admin ------------------------------------------------------------------
 
 export async function searchUsers(query: string, page: number, size = 20): Promise<Page<UserAdmin>> {
   const { data } = await httpClient.get<Page<UserAdmin>>('/api/admin/users', {

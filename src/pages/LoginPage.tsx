@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { login } from '../features/auth/api'
 import { useAuthStore } from '../store/authStore'
@@ -14,6 +15,7 @@ export function LoginPage() {
   const setSession = useAuthStore((s) => s.setSession)
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
   const redirectTo = (location.state as { from?: string } | null)?.from ?? '/'
 
   async function handleSubmit(e: React.FormEvent) {
@@ -22,6 +24,11 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const result = await login(loginId, password)
+      // Every cached query (menus, admin lists, ...) is scoped to "whoever is currently logged
+      // in" — none of it is safe to keep across a login, since the previous tab's session (or an
+      // earlier logged-out user) may have left permission-filtered data behind that doesn't apply
+      // to this account.
+      queryClient.clear()
       setSession(result.accessToken, result.user)
       navigate(redirectTo, { replace: true })
     } catch (err) {
