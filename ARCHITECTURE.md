@@ -23,13 +23,13 @@ src/
 │   ├── TopNav.tsx               # 대메뉴(최상위 메뉴) 가로 탭
 │   └── Sidebar.tsx               # 중메뉴/소메뉴 세로 목록 (재귀 렌더링)
 ├── pages/                    # 라우트에 매핑되는 화면
-│   ├── LoginPage.tsx, HomePage.tsx, EmbedPage.tsx
+│   ├── LoginPage.tsx, HomePage.tsx, MyPage.tsx, EmbedPage.tsx
 │   └── admin/{MenuManagerPage, RoleManagerPage, UserManagerPage}.tsx
 ├── features/                 # 백엔드 도메인과 1:1 대응하는 API 함수 + 도메인 전용 로직
 │   ├── auth/api.ts            # login/logout/me
 │   ├── menu/{api, adminApi, menuTree, adminTree}.ts
 │   ├── role/api.ts
-│   └── user/api.ts
+│   └── user/api.ts            # 관리자용 CRUD + 본인 프로필(self-service: fetchMyProfile 등)
 ├── components/                # 여러 페이지에서 재사용하는 순수 UI 조각
 │   ├── Button.tsx, Modal.tsx, ConfirmDialog.tsx, MenuIcon.tsx
 ├── lib/
@@ -66,6 +66,8 @@ src/
 
 이렇게 라우트에서 상태를 파생시키면 "뒤로가기/새로고침해도 상단·좌측 메뉴가 항상 현재 위치와 맞다"가 자동으로 보장된다. 새로고침 시 별도 상태 복원 로직이 필요 없다. 이 계산 함수들은 모두 `features/menu/menuTree.ts`에 있다.
 
+`/me`(마이페이지)는 이 메뉴 트리에 속하지 않는 고정 라우트다 — 메뉴 권한 시스템 밖에서 항상 모든 로그인 사용자가 접근 가능해야 하므로(자기 계정 정보는 권한과 무관), 백엔드 메뉴 데이터로 등록하지 않고 `Topbar`에 고정 링크로 박아뒀다. 어떤 메뉴와도 매칭되지 않으므로 이 페이지에 있을 때는 `topAncestor`가 `null`이 되어 대메뉴/좌측메뉴가 강조 없이 표시된다(홈 화면과 동일한 동작).
+
 ### 3.4 admin 화면의 메뉴 트리 편집 — `features/menu/adminTree.ts`
 
 `MenuManagerPage`는 `/api/admin/menus`가 주는 **평면 배열**(`MenuAdmin[]`, `parentMenuId`+`sortOrder`만 있음)을 받아 `buildAdminTree()`로 화면에 필요한 트리를 만든다. 위/아래/들여쓰기/내어쓰기 버튼은 각각 `moveUp`/`moveDown`/`indent`/`outdent` 함수가 "바뀔 항목들의 새 `{menuId, parentMenuId, sortOrder}`"를 계산하고, 그 결과를 `PATCH /api/admin/menus/reorder`로 한 번에 보낸다. 들여쓰기/내어쓰기는 항상 새 형제 그룹의 **맨 끝**에 배치한다(정확한 위치 보존보다 구현 단순성을 택함 — 필요하면 `nextSortOrder`를 손보면 됨).
@@ -82,6 +84,12 @@ src/
 - 응답 인터셉터: 401이 오고, 그 요청이 `/api/auth/refresh` 자신이 아니고, 아직 재시도 안 했다면 → `refreshAccessToken()`으로 새 토큰을 받고 원래 요청을 딱 한 번 재시도한다. 동시에 여러 요청이 401을 맞아도 리프레시 호출은 하나만 나간다(`refreshPromise`로 중복 제거).
 
 `refreshClient`라는 별도의 axios 인스턴스를 쓰는 이유: 리프레시 요청 자체가 이 인터셉터를 다시 타면 리프레시 실패 시 무한 루프에 빠진다.
+
+### 4.3 로그인/로그아웃 시 React Query 캐시를 반드시 비운다
+
+`['menus','my']`를 비롯해 이 앱의 거의 모든 캐시된 쿼리는 "지금 로그인한 사람" 기준으로 필터링된 데이터다. React Query의 `QueryClient`는 앱 전역에 하나뿐인 싱글턴이고 쿼리 키에 사용자 식별자가 들어있지 않기 때문에, 로그인/로그아웃을 해도 캐시는 자동으로 비워지지 않는다 — 그대로 두면 같은 탭에서 admin으로 있다가 로그아웃 후 다른(권한이 적은) 계정으로 다시 로그인했을 때, 새로 데이터를 받아오기 전까지 **이전 계정의 메뉴 트리가 그대로 화면에 남아있을 수 있다**(실제로 이 증상 때문에 "권한을 ADMIN으로만 줬는데 일반 사용자에게도 메뉴가 보인다"는 버그 리포트가 있었다 — 정작 백엔드 권한 로직은 정상이었고, 프런트가 이전 세션의 캐시를 안 지운 게 원인이었다).
+
+그래서 `LoginPage.tsx`의 로그인 성공 직후와 `Topbar.tsx`의 로그아웃 처리 안에서 둘 다 `queryClient.clear()`를 호출한다. 사용자 스코프의 쿼리를 새로 추가하더라도(예: 나중에 사용자별 알림 등) 이 두 지점을 건드릴 필요는 없다 — `clear()`가 전체를 비우기 때문. 대신 로그인/로그아웃 흐름을 바꿀 때는 이 호출이 계속 남아있는지 확인할 것.
 
 ## 5. 서버 상태 (React Query) 사용 규칙
 
