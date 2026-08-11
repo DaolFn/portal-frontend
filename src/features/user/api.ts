@@ -33,6 +33,22 @@ export async function searchUsers(query: string, page: number, size = 20): Promi
   return data
 }
 
+/** Resolves display info for a known set of user ids — e.g. individual menu-permission grantees. */
+export async function fetchUsersByIds(ids: number[]): Promise<UserAdmin[]> {
+  if (ids.length === 0) return []
+  // Comma-joined into a single query param — avoids relying on axios's array-serialization
+  // format matching whatever Spring's @RequestParam List<Long> binding expects on the other end.
+  const { data } = await httpClient.get<UserAdmin[]>('/api/admin/users/by-ids', {
+    params: { ids: ids.join(',') },
+  })
+  return data
+}
+
+export async function fetchDeptCodes(): Promise<string[]> {
+  const { data } = await httpClient.get<string[]>('/api/admin/users/dept-codes')
+  return data
+}
+
 export async function createUser(input: UserCreateInput): Promise<UserAdmin> {
   const { data } = await httpClient.post<UserAdmin>('/api/admin/users', input)
   return data

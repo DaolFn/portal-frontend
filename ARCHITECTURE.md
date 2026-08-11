@@ -54,7 +54,9 @@ src/
   - `LINK` → 새 탭으로 열고 끝 (화면 전환 없음)
   - `GROUP` → 그 안에서 DFS로 찾은 첫 `INTERNAL`/`EMBED` 자손으로 이동 (`findFirstNavigableDescendant`, `features/menu/menuTree.ts`)
   - `INTERNAL`/`EMBED` → 자기 라우트로 바로 이동
-- **`Sidebar`**: "현재 활성 대메뉴"의 `children`만 받아서 재귀적으로 그린다(중메뉴 아래에 또 `GROUP`이 있으면 소메뉴로 펼쳐짐). 대메뉴 자체가 자식이 없으면(리프) `AppLayout`이 `Sidebar`를 렌더링하지 않는다.
+- **`Sidebar`**: "현재 활성 대메뉴"의 `children`만 받아서 재귀적으로 그린다(중메뉴 아래에 또 자식이 있으면 소메뉴로 펼쳐짐). 대메뉴 자체가 자식이 없으면(리프) `AppLayout`이 `Sidebar`를 렌더링하지 않는다.
+  - 자식 유무(`hasChildren`)와 메뉴 타입은 서로 독립이다 — `GROUP`뿐 아니라 `LINK`/`INTERNAL`/`EMBED`도 자식을 가질 수 있다(예: 그 자체로 이동 가능한 메뉴 밑에 소메뉴가 달린 경우). 그래서 접기/펼치기 화살표(`ChevronDown`/`ChevronRight`)는 `content`(GROUP 버튼 / LINK `<a>` / `NavLink`)와 **형제 엘리먼트**로 렌더링하고, `hasChildren`이면 무조건 보여준다 — 특정 `menuType`일 때만 그리는 게 아니다. 화살표를 눌러도 이동은 하지 않고 그 메뉴의 `expanded` 로컬 state만 토글한다(각 메뉴 노드가 자기 펼침 상태를 갖는 재귀 컴포넌트 구조).
+  - 화살표를 내비게이션 엘리먼트(`<a>`/`<button>`/`NavLink`) **안에 중첩시키면 안 된다** — `<button>` 안에 `<button>`을 넣는 잘못된 HTML이 되고 클릭 이벤트도 뒤섞인다. 항상 `<div className="flex items-center">화살표 + content</div>` 형태로 나란히 둔다.
 
 ### 3.3 "지금 어느 대메뉴에 있는지"는 URL이 결정한다
 
@@ -71,6 +73,20 @@ src/
 ### 3.4 admin 화면의 메뉴 트리 편집 — `features/menu/adminTree.ts`
 
 `MenuManagerPage`는 `/api/admin/menus`가 주는 **평면 배열**(`MenuAdmin[]`, `parentMenuId`+`sortOrder`만 있음)을 받아 `buildAdminTree()`로 화면에 필요한 트리를 만든다. 위/아래/들여쓰기/내어쓰기 버튼은 각각 `moveUp`/`moveDown`/`indent`/`outdent` 함수가 "바뀔 항목들의 새 `{menuId, parentMenuId, sortOrder}`"를 계산하고, 그 결과를 `PATCH /api/admin/menus/reorder`로 한 번에 보낸다. 들여쓰기/내어쓰기는 항상 새 형제 그룹의 **맨 끝**에 배치한다(정확한 위치 보존보다 구현 단순성을 택함 — 필요하면 `nextSortOrder`를 손보면 됨).
+
+### 3.5 조상 자동 노출은 없다 — 모든 레벨에 각각 권한을 줘야 보인다
+
+`GET /api/menus/my`는 대메뉴든 중메뉴든 소메뉴든 예외 없이 **해당 메뉴에 직접 권한이 있는 것만** 필터링해서 내려준다(백엔드 쪽 규칙은 `portal-backend/ARCHITECTURE.md` 3.4 참고). 프런트는 이 트리를 그대로 그리기만 하므로 별도 처리는 필요 없지만, admin이 "중메뉴에 권한을 줬는데 화면에 안 보인다"고 할 때 원인은 거의 항상 그 중메뉴의 **부모 대메뉴에도 같은 principal의 권한이 빠져 있는 경우**다 — `MenuManagerPage`에서 권한을 부여할 때는 보여주고 싶은 메뉴부터 그 조상 전부에 똑같이 권한을 넣어야 한다는 걸 기억할 것.
+
+### 3.6 권한 부여 모달 — 역할·부서·개인 복수 선택 (`PermissionModal`, `MenuManagerPage.tsx`)
+
+메뉴 하나의 권한은 역할/부서/개인 세 축을 동시에 가질 수 있고(`OR` 조건 — 셋 중 하나라도 맞으면 보임), 각 축 안에서도 복수 선택이 된다. 모달 안에서 세 섹션으로 나눠 관리한다:
+
+- **역할**: 체크박스 목록(기존 역할 관리 화면과 같은 목록을 재사용).
+- **부서**: 별도 부서 마스터 테이블이 없으므로 `GET /api/admin/users/dept-codes`(기존 사용자들이 실제로 쓰는 부서코드 중복제거 목록)로 체크박스를 채운다.
+- **개인**: 사용자 검색(`searchUsers`) → 결과에서 추가 → 선택된 사용자 목록에서 제거, 형태의 태그 UI. 모달을 열 때 이미 저장된 `userIds`만 갖고 있으므로, 이름/로그인ID를 보여주려면 `fetchUsersByIds`로 상세를 한 번에 조회해서 `selectedUsers` state에 채워 넣는다(`useEffect(() => { if (permissions?.userIds.length) fetchUsersByIds(...).then(setSelectedUsers) }, [permissions])`).
+
+저장은 `PUT /api/admin/menus/{id}/permissions`에 `{roleIds, deptCodes, userIds}` 세 배열을 **항상 전체로** 보낸다 — 부분 갱신 API가 없으므로 체크박스를 하나만 토글해도 세 배열 전체를 다시 조립해서 보낸다. 저장 mutation이 진행 중(`mutation.isPending`)인 동안은 모든 체크박스/버튼을 `disabled`로 막아 중복 요청으로 겹친 토글이 서버에서 경쟁하는 것을 방지한다.
 
 ## 4. 인증 상태
 

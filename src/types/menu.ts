@@ -40,3 +40,9 @@ export interface MenuCreateInput {
 }
 
 export type MenuUpdateInput = Omit<MenuCreateInput, 'parentMenuId' | 'menuCode' | 'sortOrder'>
+
+export interface MenuPermissions {
+  roleIds: number[]
+  deptCodes: string[]
+  userIds: number[]
+}

@@ -1,5 +1,5 @@
 import { httpClient } from '../../lib/httpClient'
-import type { MenuAdmin, MenuCreateInput, MenuUpdateInput } from '../../types/menu'
+import type { MenuAdmin, MenuCreateInput, MenuPermissions, MenuUpdateInput } from '../../types/menu'
 
 export async function fetchAllMenus(): Promise<MenuAdmin[]> {
   const { data } = await httpClient.get<MenuAdmin[]>('/api/admin/menus')
@@ -36,14 +36,12 @@ export async function reorderMenus(items: ReorderItem[]): Promise<MenuAdmin[]> {
   return data
 }
 
-export async function fetchMenuPermissions(menuId: number): Promise<number[]> {
-  const { data } = await httpClient.get<{ roleIds: number[] }>(`/api/admin/menus/${menuId}/permissions`)
-  return data.roleIds
+export async function fetchMenuPermissions(menuId: number): Promise<MenuPermissions> {
+  const { data } = await httpClient.get<MenuPermissions>(`/api/admin/menus/${menuId}/permissions`)
+  return data
 }
 
-export async function updateMenuPermissions(menuId: number, roleIds: number[]): Promise<number[]> {
-  const { data } = await httpClient.put<{ roleIds: number[] }>(`/api/admin/menus/${menuId}/permissions`, {
-    roleIds,
-  })
-  return data.roleIds
+export async function updateMenuPermissions(menuId: number, permissions: MenuPermissions): Promise<MenuPermissions> {
+  const { data } = await httpClient.put<MenuPermissions>(`/api/admin/menus/${menuId}/permissions`, permissions)
+  return data
 }

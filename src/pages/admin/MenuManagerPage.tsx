@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronDown,
@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Trash2,
   RotateCcw,
+  X,
 } from 'lucide-react'
 import {
   activateMenu,
@@ -24,8 +25,11 @@ import {
   updateMenuPermissions,
 } from '../../features/menu/adminApi'
 import { fetchRoles } from '../../features/role/api'
+import { fetchDeptCodes, fetchUsersByIds, searchUsers } from '../../features/user/api'
 import { buildAdminTree, indent, moveDown, moveUp, outdent, type AdminTreeNode } from '../../features/menu/adminTree'
-import type { MenuAdmin, MenuType, OpenMode } from '../../types/menu'
+import type { MenuAdmin, MenuPermissions, MenuType, OpenMode } from '../../types/menu'
+import type { Role } from '../../types/role'
+import type { UserAdmin } from '../../types/user'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -443,48 +447,182 @@ function RowIconButton({
   )
 }
 
+const EMPTY_PERMISSIONS: MenuPermissions = { roleIds: [], deptCodes: [], userIds: [] }
+
 function PermissionModal({
   menuId,
   roles,
   onClose,
 }: {
   menuId: number
-  roles: { roleId: number; roleName: string; roleCode: string }[]
+  roles: Role[]
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
-  const { data: roleIds } = useQuery({
+  const { data: permissions } = useQuery({
     queryKey: ['admin', 'menus', menuId, 'permissions'],
     queryFn: () => fetchMenuPermissions(menuId),
   })
+  const { data: deptCodes } = useQuery({ queryKey: ['admin', 'dept-codes'], queryFn: fetchDeptCodes })
+
+  const [selectedUsers, setSelectedUsers] = useState<UserAdmin[]>([])
+  const [userQuery, setUserQuery] = useState('')
+  const { data: userSearchResults } = useQuery({
+    queryKey: ['admin', 'users', 'search-for-permission', userQuery],
+    queryFn: () => searchUsers(userQuery, 0, 10),
+    enabled: userQuery.trim().length > 0,
+  })
+
+  // Permissions only give us userIds — resolve them to names once so the "이미 선택된 개인"
+  // list is readable rather than a bag of numeric ids.
+  useEffect(() => {
+    if (permissions && permissions.userIds.length > 0) {
+      fetchUsersByIds(permissions.userIds).then(setSelectedUsers)
+    } else {
+      setSelectedUsers([])
+    }
+  }, [permissions])
 
   const mutation = useMutation({
-    mutationFn: (nextRoleIds: number[]) => updateMenuPermissions(menuId, nextRoleIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'menus', menuId, 'permissions'] })
+    mutationFn: (next: MenuPermissions) => updateMenuPermissions(menuId, next),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['admin', 'menus', menuId, 'permissions'], data)
       queryClient.invalidateQueries({ queryKey: ['menus', 'my'] })
     },
   })
 
-  function toggle(roleId: number) {
-    const current = roleIds ?? []
-    const next = current.includes(roleId) ? current.filter((id) => id !== roleId) : [...current, roleId]
-    mutation.mutate(next)
+  // Checkboxes below disable while a save is in flight — this isn't just responsiveness polish,
+  // it prevents two overlapping "replace all permissions" requests for the same menu from racing
+  // (each does its own delete-then-reinsert, so two in flight at once can double-insert the same
+  // grant and trip the unique constraint).
+  const saving = mutation.isPending
+
+  const current = permissions ?? EMPTY_PERMISSIONS
+
+  function toggleRole(roleId: number) {
+    const roleIds = current.roleIds.includes(roleId)
+      ? current.roleIds.filter((id) => id !== roleId)
+      : [...current.roleIds, roleId]
+    mutation.mutate({ ...current, roleIds })
+  }
+
+  function toggleDept(dept: string) {
+    const deptCodesNext = current.deptCodes.includes(dept)
+      ? current.deptCodes.filter((d) => d !== dept)
+      : [...current.deptCodes, dept]
+    mutation.mutate({ ...current, deptCodes: deptCodesNext })
+  }
+
+  function addUser(user: UserAdmin) {
+    if (current.userIds.includes(user.userId)) return
+    mutation.mutate({ ...current, userIds: [...current.userIds, user.userId] })
+    setSelectedUsers((prev) => [...prev, user])
+    setUserQuery('')
+  }
+
+  function removeUser(userId: number) {
+    mutation.mutate({ ...current, userIds: current.userIds.filter((id) => id !== userId) })
+    setSelectedUsers((prev) => prev.filter((u) => u.userId !== userId))
   }
 
   return (
     <Modal title="메뉴 권한 관리" open onClose={onClose}>
-      <div className="flex flex-col gap-2">
-        {roles.map((role) => (
-          <label key={role.roleId} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={roleIds?.includes(role.roleId) ?? false}
-              onChange={() => toggle(role.roleId)}
-            />
-            {role.roleName} <span className="text-ink-muted">({role.roleCode})</span>
-          </label>
-        ))}
+      <div className="flex max-h-[70vh] flex-col gap-5 overflow-y-auto">
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">역할</h3>
+          <div className="flex flex-col gap-1.5">
+            {roles.length === 0 && <p className="text-sm text-ink-muted">등록된 역할이 없습니다.</p>}
+            {roles.map((role) => (
+              <label key={role.roleId} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={current.roleIds.includes(role.roleId)}
+                  onChange={() => toggleRole(role.roleId)}
+                  disabled={saving}
+                />
+                {role.roleName} <span className="text-ink-muted">({role.roleCode})</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">부서</h3>
+          <div className="flex flex-col gap-1.5">
+            {(deptCodes ?? []).length === 0 && (
+              <p className="text-sm text-ink-muted">사용자에 등록된 부서코드가 없습니다.</p>
+            )}
+            {deptCodes?.map((dept) => (
+              <label key={dept} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={current.deptCodes.includes(dept)}
+                  onChange={() => toggleDept(dept)}
+                  disabled={saving}
+                />
+                {dept}
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">개인</h3>
+          <input
+            value={userQuery}
+            onChange={(e) => setUserQuery(e.target.value)}
+            placeholder="아이디 또는 이름으로 검색"
+            className="mb-2 w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          {userQuery.trim().length > 0 && (
+            <div className="mb-2 max-h-32 overflow-y-auto rounded-md border border-line">
+              {(userSearchResults?.content.length ?? 0) === 0 ? (
+                <p className="p-2 text-sm text-ink-muted">검색 결과가 없습니다.</p>
+              ) : (
+                userSearchResults!.content.map((user) => (
+                  <button
+                    key={user.userId}
+                    type="button"
+                    onClick={() => addUser(user)}
+                    disabled={saving}
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-canvas disabled:opacity-50"
+                  >
+                    <span>
+                      {user.userName} <span className="text-ink-muted">({user.loginId})</span>
+                    </span>
+                    <Plus size={13} className="text-ink-muted" />
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            {selectedUsers.length === 0 && <p className="text-sm text-ink-muted">선택된 개인이 없습니다.</p>}
+            {selectedUsers.map((user) => (
+              <div
+                key={user.userId}
+                className="flex items-center justify-between rounded-md bg-canvas px-3 py-1.5 text-sm"
+              >
+                <span>
+                  {user.userName} <span className="text-ink-muted">({user.loginId})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeUser(user.userId)}
+                  disabled={saving}
+                  aria-label="선택 해제"
+                  className="text-ink-muted hover:text-danger disabled:opacity-50"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {mutation.isError && (
+          <p className="text-sm text-danger">저장에 실패했습니다. 잠시 후 다시 시도해주세요.</p>
+        )}
       </div>
     </Modal>
   )
