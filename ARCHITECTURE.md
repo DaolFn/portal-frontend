@@ -57,6 +57,9 @@ src/
 - **`Sidebar`**: "현재 활성 대메뉴"의 `children`만 받아서 재귀적으로 그린다(중메뉴 아래에 또 자식이 있으면 소메뉴로 펼쳐짐). 대메뉴 자체가 자식이 없으면(리프) `AppLayout`이 `Sidebar`를 렌더링하지 않는다.
   - 자식 유무(`hasChildren`)와 메뉴 타입은 서로 독립이다 — `GROUP`뿐 아니라 `LINK`/`INTERNAL`/`EMBED`도 자식을 가질 수 있다(예: 그 자체로 이동 가능한 메뉴 밑에 소메뉴가 달린 경우). 그래서 접기/펼치기 화살표(`ChevronDown`/`ChevronRight`)는 `content`(GROUP 버튼 / LINK `<a>` / `NavLink`)와 **형제 엘리먼트**로 렌더링하고, `hasChildren`이면 무조건 보여준다 — 특정 `menuType`일 때만 그리는 게 아니다. 화살표를 눌러도 이동은 하지 않고 그 메뉴의 `expanded` 로컬 state만 토글한다(각 메뉴 노드가 자기 펼침 상태를 갖는 재귀 컴포넌트 구조).
   - 화살표를 내비게이션 엘리먼트(`<a>`/`<button>`/`NavLink`) **안에 중첩시키면 안 된다** — `<button>` 안에 `<button>`을 넣는 잘못된 HTML이 되고 클릭 이벤트도 뒤섞인다. 항상 `<div className="flex items-center">화살표 + content</div>` 형태로 나란히 둔다.
+  - 이건 메뉴 항목 하나씩 접는 기능이고, `Sidebar` 패널 전체를 접는 것과는 별개다 — 전체 접기는 바로 아래 항목 참고.
+
+`Sidebar` 전체를 접었다 펼 수도 있다(화면을 더 넓게 쓰고 싶을 때). `AppLayout`이 `showSidebar`일 때 항상 렌더링하는 폭 32px짜리 레일(`w-8` div)에 토글 버튼이 있고, `sidebarCollapsed` state에 따라 `Sidebar` 자체를 마운트/언마운트한다. 이 토글 버튼을 `Sidebar` 안이 아니라 레일에 둔 이유: `Sidebar`가 사라져도(접힌 상태) 다시 펼 수단이 남아있어야 하기 때문이다. 처음엔 접힌 상태에서 본문 위에 떠 있는 절대위치(`absolute`) 버튼으로 만들었다가, 본문 텍스트와 겹치는 문제가 있어서 항상 자리를 차지하는 레일 방식으로 바꿨다 — 겹침 없이 하려면 절대위치보다 항상 flex 흐름에 있는 고정 폭 레일이 더 안전하다.
 
 ### 3.3 "지금 어느 대메뉴에 있는지"는 URL이 결정한다
 
