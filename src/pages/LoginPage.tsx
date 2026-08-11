@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import axios from 'axios'
 import { login } from '../features/auth/api'
 import { useAuthStore } from '../store/authStore'
 import { Button } from '../components/Button'
@@ -23,8 +24,15 @@ export function LoginPage() {
       const result = await login(loginId, password)
       setSession(result.accessToken, result.user)
       navigate(redirectTo, { replace: true })
-    } catch {
-      setError('아이디 또는 비밀번호가 올바르지 않습니다')
+    } catch (err) {
+      if (axios.isAxiosError(err) && !err.response) {
+        // Request never got a response — the API server is down/unreachable, not a bad password.
+        setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
+      } else if (axios.isAxiosError(err) && err.response?.status === 403) {
+        setError('비활성화된 계정입니다. 관리자에게 문의하세요.')
+      } else {
+        setError('아이디 또는 비밀번호가 올바르지 않습니다')
+      }
     } finally {
       setSubmitting(false)
     }
