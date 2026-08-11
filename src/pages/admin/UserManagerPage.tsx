@@ -114,9 +114,9 @@ export function UserManagerPage() {
         className="mb-4 w-72 rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-accent"
       />
 
-      <div className="overflow-hidden rounded-md border border-line">
+      <div className="overflow-hidden rounded-md border border-line bg-surface shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-surface text-left text-ink-muted">
+          <thead className="bg-canvas text-left text-ink-muted">
             <tr>
               <th className="px-4 py-2 font-medium">아이디</th>
               <th className="px-4 py-2 font-medium">이름</th>

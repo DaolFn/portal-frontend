@@ -30,7 +30,10 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
   // wins, so mixing them can silently render invisible (black-on-black) text.
   const baseRowClasses = 'flex items-center gap-2 rounded-md py-2 text-sm transition'
   const inactiveRowClasses = `${baseRowClasses} text-ink hover:bg-line/60`
-  const activeRowClasses = `${baseRowClasses} bg-accent text-accent-ink`
+  // Sidebar selection is a soft tint + left rail, not a solid fill — the solid accent pill is
+  // reserved for the top-nav's 대메뉴 so the two levels read as visually distinct.
+  const activeRowClasses = `${baseRowClasses} bg-accent-soft text-accent font-medium`
+  const activeRailStyle = { boxShadow: 'inset 2px 0 0 var(--color-accent)' }
 
   if (menu.menuType === 'GROUP') {
     return (
@@ -81,7 +84,7 @@ function MenuItem({ menu, depth }: { menu: MenuNode; depth: number }) {
       <NavLink
         to={to}
         className={({ isActive }) => (isActive ? activeRowClasses : inactiveRowClasses)}
-        style={{ paddingLeft }}
+        style={({ isActive }) => (isActive ? { paddingLeft, ...activeRailStyle } : { paddingLeft })}
       >
         <MenuIcon name={menu.icon} size={16} />
         <span>{menu.menuName}</span>

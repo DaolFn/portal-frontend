@@ -34,7 +34,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border border-line p-8"
+        className="w-full max-w-sm rounded-lg border border-line bg-surface p-8 shadow-sm"
       >
         <h1 className="mb-1 text-lg font-semibold text-ink">DAOL 통합 포털</h1>
         <p className="mb-6 text-sm text-ink-muted">계정으로 로그인하세요</p>

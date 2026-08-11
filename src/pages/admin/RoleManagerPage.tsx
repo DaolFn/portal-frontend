@@ -97,9 +97,9 @@ export function RoleManagerPage() {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-line">
+      <div className="overflow-hidden rounded-md border border-line bg-surface shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-surface text-left text-ink-muted">
+          <thead className="bg-canvas text-left text-ink-muted">
             <tr>
               <th className="px-4 py-2 font-medium">코드</th>
               <th className="px-4 py-2 font-medium">이름</th>

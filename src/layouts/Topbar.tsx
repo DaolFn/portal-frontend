@@ -18,14 +18,14 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-line bg-canvas px-5">
+    <header className="flex h-14 items-center justify-between border-b border-line bg-surface px-5">
       <span className="text-sm font-semibold tracking-tight">DAOL 통합 포털</span>
       <div className="flex items-center gap-3 text-sm text-ink-muted">
         <span>{user?.userName}</span>
         <button
           type="button"
           onClick={handleLogout}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-ink hover:bg-surface"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-ink hover:bg-canvas"
         >
           <LogOut size={15} />
           로그아웃

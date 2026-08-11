@@ -61,6 +61,7 @@ export function MenuManagerPage() {
   const [form, setForm] = useState<MenuFormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<MenuAdmin | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [permissionTargetId, setPermissionTargetId] = useState<number | null>(null)
 
   function invalidateMenus() {
@@ -96,6 +97,10 @@ export function MenuManagerPage() {
     mutationFn: (menuId: number) => deleteMenu(menuId, false),
     onSuccess: () => {
       invalidateMenus()
+      setDeleteTarget(null)
+    },
+    onError: () => {
+      setDeleteError('비활성화에 실패했습니다. 잠시 후 다시 시도해주세요.')
       setDeleteTarget(null)
     },
   })
@@ -190,7 +195,9 @@ export function MenuManagerPage() {
         </Button>
       </div>
 
-      <div className="rounded-md border border-line">
+      {deleteError && <p className="mb-3 text-sm text-danger">{deleteError}</p>}
+
+      <div className="rounded-md border border-line bg-surface shadow-sm">
         {tree.length === 0 && <p className="p-4 text-sm text-ink-muted">메뉴가 없습니다.</p>}
         {tree.map((node) => (
           <MenuRow

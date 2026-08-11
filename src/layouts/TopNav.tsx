@@ -28,7 +28,7 @@ export function TopNav({ menus, activeTopMenuId }: TopNavProps) {
   }
 
   return (
-    <nav className="flex h-11 items-center gap-1 border-b border-line bg-canvas px-4">
+    <nav className="flex h-11 items-center gap-1 border-b border-line bg-surface px-4">
       {menus.map((menu) => (
         <button
           key={menu.menuId}
@@ -37,7 +37,7 @@ export function TopNav({ menus, activeTopMenuId }: TopNavProps) {
           className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition ${
             activeTopMenuId === menu.menuId
               ? 'bg-accent text-accent-ink'
-              : 'text-ink-muted hover:bg-surface hover:text-ink'
+              : 'text-ink-muted hover:bg-canvas hover:text-ink'
           }`}
         >
           <MenuIcon name={menu.icon} size={15} />
