@@ -25,7 +25,8 @@ import {
   updateMenuPermissions,
 } from '../../features/menu/adminApi'
 import { fetchRoles } from '../../features/role/api'
-import { fetchDeptCodes, fetchUsersByIds, searchUsers } from '../../features/user/api'
+import { fetchDepts } from '../../features/dept/api'
+import { fetchUsersByIds, searchUsers } from '../../features/user/api'
 import { buildAdminTree, indent, moveDown, moveUp, outdent, type AdminTreeNode } from '../../features/menu/adminTree'
 import type { MenuAdmin, MenuPermissions, MenuType, OpenMode } from '../../types/menu'
 import type { Role } from '../../types/role'
@@ -463,7 +464,7 @@ function PermissionModal({
     queryKey: ['admin', 'menus', menuId, 'permissions'],
     queryFn: () => fetchMenuPermissions(menuId),
   })
-  const { data: deptCodes } = useQuery({ queryKey: ['admin', 'dept-codes'], queryFn: fetchDeptCodes })
+  const { data: depts } = useQuery({ queryKey: ['admin', 'depts'], queryFn: fetchDepts })
 
   const [selectedUsers, setSelectedUsers] = useState<UserAdmin[]>([])
   const [userQuery, setUserQuery] = useState('')
@@ -549,18 +550,18 @@ function PermissionModal({
         <section>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">부서</h3>
           <div className="flex flex-col gap-1.5">
-            {(deptCodes ?? []).length === 0 && (
-              <p className="text-sm text-ink-muted">사용자에 등록된 부서코드가 없습니다.</p>
+            {(depts ?? []).length === 0 && (
+              <p className="text-sm text-ink-muted">등록된 부서가 없습니다. 부서 관리에서 먼저 추가하세요.</p>
             )}
-            {deptCodes?.map((dept) => (
-              <label key={dept} className="flex items-center gap-2 text-sm">
+            {depts?.map((dept) => (
+              <label key={dept.deptCode} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={current.deptCodes.includes(dept)}
-                  onChange={() => toggleDept(dept)}
+                  checked={current.deptCodes.includes(dept.deptCode)}
+                  onChange={() => toggleDept(dept.deptCode)}
                   disabled={saving}
                 />
-                {dept}
+                {dept.deptName} <span className="text-ink-muted">({dept.deptCode})</span>
               </label>
             ))}
           </div>

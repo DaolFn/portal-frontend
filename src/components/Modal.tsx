@@ -6,16 +6,20 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** Use for content that needs more room, e.g. a stack trace — default width fits short forms. */
+  wide?: boolean
 }
 
-export function Modal({ title, open, onClose, children, footer }: ModalProps) {
+export function Modal({ title, open, onClose, children, footer, wide = false }: ModalProps) {
   if (!open) {
     return null
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-lg border border-line bg-surface text-ink shadow-xl">
+      <div
+        className={`w-full rounded-lg border border-line bg-surface text-ink shadow-xl ${wide ? 'max-w-3xl' : 'max-w-md'}`}
+      >
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="text-base font-semibold">{title}</h2>
           <button

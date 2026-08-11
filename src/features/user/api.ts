@@ -44,11 +44,6 @@ export async function fetchUsersByIds(ids: number[]): Promise<UserAdmin[]> {
   return data
 }
 
-export async function fetchDeptCodes(): Promise<string[]> {
-  const { data } = await httpClient.get<string[]>('/api/admin/users/dept-codes')
-  return data
-}
-
 export async function createUser(input: UserCreateInput): Promise<UserAdmin> {
   const { data } = await httpClient.post<UserAdmin>('/api/admin/users', input)
   return data

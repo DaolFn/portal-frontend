@@ -24,11 +24,13 @@ src/
 │   └── Sidebar.tsx               # 중메뉴/소메뉴 세로 목록 (재귀 렌더링)
 ├── pages/                    # 라우트에 매핑되는 화면
 │   ├── LoginPage.tsx, HomePage.tsx, MyPage.tsx, EmbedPage.tsx
-│   └── admin/{MenuManagerPage, RoleManagerPage, UserManagerPage}.tsx
+│   └── admin/{MenuManagerPage, RoleManagerPage, UserManagerPage, DeptManagerPage, ErrorLogManagerPage}.tsx
 ├── features/                 # 백엔드 도메인과 1:1 대응하는 API 함수 + 도메인 전용 로직
 │   ├── auth/api.ts            # login/logout/me
 │   ├── menu/{api, adminApi, menuTree, adminTree}.ts
 │   ├── role/api.ts
+│   ├── dept/api.ts             # 부서 마스터 CRUD — 권한 모달·사용자 폼의 부서 선택도 여기서 가져온다
+│   ├── errorLog/api.ts         # 읽기 전용: 페이징 목록 + 상세(스택 트레이스)
 │   └── user/api.ts            # 관리자용 CRUD + 본인 프로필(self-service: fetchMyProfile 등)
 ├── components/                # 여러 페이지에서 재사용하는 순수 UI 조각
 │   ├── Button.tsx, Modal.tsx, ConfirmDialog.tsx, MenuIcon.tsx
@@ -37,7 +39,7 @@ src/
 │   └── queryClient.ts           # React Query 기본 옵션
 ├── store/authStore.ts          # 로그인 세션 (액세스토큰 + 사용자 정보), 메모리에만 존재
 ├── styles/tokens.css            # 테마 CSS 변수 (@theme) — 중립 팔레트 + 인디고 포인트
-└── types/{menu, role, user}.ts  # 백엔드 DTO와 대응하는 TS 타입
+└── types/{menu, role, user, dept, errorLog}.ts  # 백엔드 DTO와 대응하는 TS 타입
 ```
 
 새 화면을 만들 때 "이건 어디에 두나?"의 기본 규칙: **API 호출 함수는 `features/<도메인>/api.ts`, 화면은 `pages/`, 여러 화면이 같이 쓰는 순수 UI는 `components/`.**
@@ -145,10 +147,18 @@ src/
 
 ## 7. 새 관리자 화면을 추가할 때
 
-예를 들어 "부서 관리" 화면을 추가한다면:
+예를 들어 "부서 관리" 화면을 추가한다면 (이 문서에 예시로만 적혀 있던 걸 실제로 만들었다 — 아래는 실제 구현 기준):
 
 1. 백엔드에 `/api/admin/depts` 같은 CRUD API가 있다고 가정하고 `features/dept/api.ts`에 fetch 함수들을 추가한다 (`features/role/api.ts`를 그대로 템플릿으로 복사해서 쓰면 됨 — 가장 단순한 CRUD 예시).
 2. `types/dept.ts`에 백엔드 DTO와 맞춘 타입을 추가한다.
 3. `pages/admin/DeptManagerPage.tsx`를 만든다. `RoleManagerPage.tsx`를 복사해서 시작하면 목록/생성/수정/삭제 + 모달 패턴을 그대로 재사용할 수 있다.
 4. `App.tsx`의 `<Route path="admin/depts" element={<DeptManagerPage/>}/>`를 추가한다.
-5. 어드민 화면에서 새 페이지로 가는 길은 코드가 아니라 **메뉴 관리 화면에서 `menuType=INTERNAL`, `targetUrl=/admin/depts`인 메뉴를 만들고 ADMIN 역할에 권한을 부여**하는 것으로 연결한다 — 이게 이 포털의 핵심 설계 의도다.
+5. 어드민 화면에서 새 페이지로 가는 길은 코드가 아니라 **메뉴 관리 화면에서 `menuType=INTERNAL`, `targetUrl=/admin/depts`인 메뉴를 만들고 ADMIN 역할에 권한을 부여**하는 것으로 연결한다 — 이게 이 포털의 핵심 설계 의도다(실제로는 매번 수동으로 만들 필요 없이, 백엔드 시드 마이그레이션에서 메뉴 행 + ADMIN 권한 부여까지 한 번에 넣었다).
+
+부서 관리가 생기면서 "부서 코드 목록"의 소스가 바뀌었다 — 이전엔 `MenuManagerPage`의 권한 모달과 `UserManagerPage`의 사용자 생성 폼 둘 다 `fetchDeptCodes()`(기존 사용자들이 실제로 쓰는 코드 중복제거 목록, 별도 마스터 없음)를 썼는데, 지금은 둘 다 `features/dept/api.ts`의 `fetchDepts()`로 바뀌어 있다. `UserManagerPage`의 부서 입력도 자유 텍스트 `<input>`에서 `fetchDepts()`로 채운 `<select>`로 바뀌었다 — 오타로 없는 부서 코드를 사용자에게 붙이는 걸 막기 위함.
+
+### 7.1 "에러 내역" 화면 — 읽기 전용 페이징 목록 + 상세 모달 패턴
+
+`ErrorLogManagerPage.tsx`는 CRUD가 아니라 **조회만** 하는 관리자 화면의 템플릿이다. 목록(`GET /api/admin/error-logs`)은 발생시각/메소드/경로/사용자/예외타입/메시지만 보여주고 스택 트레이스는 빼서 가볍게 유지하고, 행을 클릭하면 `detailId` state가 세팅되어 상세 쿼리(`GET /api/admin/error-logs/{id}`)가 `enabled: detailId != null`로 발동하며 스택 트레이스 전체를 담은 모달이 뜬다 — 목록 API 응답에 모든 행의 긴 스택 트레이스를 다 실어 보내지 않기 위한 지연 로딩 패턴이다.
+
+스택 트레이스는 폭이 넓고 줄바꿈이 없는 텍스트라 기존 `Modal`의 기본 폭(`max-w-md`)으로는 답답해서, `Modal`에 `wide` prop을 추가했다(`max-w-3xl`로 확장) — 폭이 좁아도 되는 기존 폼 모달들은 그대로 두고, 이 화면만 `<Modal ... wide>`로 옵트인한다.

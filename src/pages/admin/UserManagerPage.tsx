@@ -9,6 +9,7 @@ import {
   updateUserStatus,
 } from '../../features/user/api'
 import { fetchRoles } from '../../features/role/api'
+import { fetchDepts } from '../../features/dept/api'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 
@@ -37,6 +38,7 @@ export function UserManagerPage() {
     queryFn: () => searchUsers(query, page),
   })
   const { data: roles } = useQuery({ queryKey: ['admin', 'roles'], queryFn: fetchRoles })
+  const { data: depts } = useQuery({ queryKey: ['admin', 'depts'], queryFn: fetchDepts })
   // Derived from the live query cache (not a captured snapshot) so checkbox state stays correct
   // as roles are toggled one at a time and the list refetches after each mutation.
   const rolesTarget = userPage?.content.find((u) => u.userId === rolesTargetId) ?? null
@@ -230,12 +232,19 @@ export function UserManagerPage() {
               className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-accent"
             />
           </Field>
-          <Field label="부서코드">
-            <input
+          <Field label="부서">
+            <select
               value={form.deptCode}
               onChange={(e) => setForm((f) => ({ ...f, deptCode: e.target.value }))}
               className="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-accent"
-            />
+            >
+              <option value="">선택 안 함</option>
+              {depts?.map((dept) => (
+                <option key={dept.deptCode} value={dept.deptCode}>
+                  {dept.deptName} ({dept.deptCode})
+                </option>
+              ))}
+            </select>
           </Field>
           {error && <p className="text-sm text-danger">{error}</p>}
         </div>

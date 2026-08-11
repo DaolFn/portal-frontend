@@ -7,6 +7,8 @@ import {
   BarChart,
   Link as LinkIcon,
   ExternalLink,
+  Building2,
+  AlertTriangle,
   type LucideProps,
 } from 'lucide-react'
 
@@ -19,6 +21,8 @@ const ICONS: Record<string, React.ComponentType<LucideProps>> = {
   'bar-chart': BarChart,
   link: LinkIcon,
   'external-link': ExternalLink,
+  'building-2': Building2,
+  'alert-triangle': AlertTriangle,
 }
 
 interface MenuIconProps extends Omit<LucideProps, 'name'> {

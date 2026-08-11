@@ -8,6 +8,8 @@ import { EmbedPage } from './pages/EmbedPage'
 import { MenuManagerPage } from './pages/admin/MenuManagerPage'
 import { RoleManagerPage } from './pages/admin/RoleManagerPage'
 import { UserManagerPage } from './pages/admin/UserManagerPage'
+import { DeptManagerPage } from './pages/admin/DeptManagerPage'
+import { ErrorLogManagerPage } from './pages/admin/ErrorLogManagerPage'
 import { useAuthStore } from './store/authStore'
 import { refreshAccessToken } from './lib/httpClient'
 
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="admin/menus" element={<MenuManagerPage />} />
         <Route path="admin/roles" element={<RoleManagerPage />} />
         <Route path="admin/users" element={<UserManagerPage />} />
+        <Route path="admin/depts" element={<DeptManagerPage />} />
+        <Route path="admin/error-logs" element={<ErrorLogManagerPage />} />
         <Route path="*" element={<p className="text-sm text-ink-muted">페이지를 찾을 수 없습니다.</p>} />
       </Route>
     </Routes>
