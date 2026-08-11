@@ -5,7 +5,7 @@
 ## 1. 기술 스택
 
 - React 19 + TypeScript + Vite
-- Tailwind CSS v4 (`@theme` 기반 디자인 토큰, 흑백 테마)
+- Tailwind CSS v4 (`@theme` 기반 디자인 토큰, 중립 팔레트 + 인디고 포인트 컬러)
 - React Router v7 (클라이언트 라우팅)
 - TanStack Query(React Query) — 서버 상태(API 데이터) 캐싱
 - Zustand — 클라이언트 상태(로그인 세션)는 아주 작아서 Redux 없이 이걸로 충분
@@ -36,7 +36,7 @@ src/
 │   ├── httpClient.ts           # axios 인스턴스 + 인증 인터셉터 (액세스토큰 주입, 401 자동 재시도)
 │   └── queryClient.ts           # React Query 기본 옵션
 ├── store/authStore.ts          # 로그인 세션 (액세스토큰 + 사용자 정보), 메모리에만 존재
-├── styles/tokens.css            # 흑백 테마 CSS 변수 (@theme)
+├── styles/tokens.css            # 테마 CSS 변수 (@theme) — 중립 팔레트 + 인디고 포인트
 └── types/{menu, role, user}.ts  # 백엔드 DTO와 대응하는 TS 타입
 ```
 
@@ -95,9 +95,22 @@ src/
 
 역할 배정처럼 "모달을 열어둔 채 여러 번 토글"하는 UI는 선택 대상을 객체 스냅샷(`useState`)으로 들고 있지 말고 **ID만 상태로 갖고, 매 렌더마다 최신 쿼리 데이터에서 찾아 파생**시킨다(`UserManagerPage`의 `rolesTargetId` 참고). 객체 스냅샷을 들고 있으면 mutation 후 refetch된 최신 데이터와 화면이 어긋난다.
 
-## 6. 테마
+## 6. 테마 — "Quiet Structure"
 
-`styles/tokens.css`가 `--color-canvas/surface/line/ink/ink-muted/accent/accent-ink/danger` 같은 의미 기반 변수를 `@theme`으로 선언하고, Tailwind가 이를 `bg-canvas`, `text-ink`, `border-line` 같은 유틸리티 클래스로 만들어준다. 컴포넌트는 `bg-gray-100`처럼 색을 직접 쓰지 않고 항상 이 의미 기반 클래스를 쓴다 — 나중에 팔레트를 바꿔도 `tokens.css` 한 곳만 고치면 된다.
+거의 무채색에 가까운 중립 팔레트를 유지하면서, 인디고 포인트 컬러 하나와 옅은 그림자·테두리로 입체감을 준 톤이다("Quiet Structure" 방향, 다른 3가지 대안은 디자인 검토 시 함께 논의됨). `styles/tokens.css`가 다음 의미 기반 변수를 `@theme`으로 선언하고, Tailwind가 이를 `bg-canvas`, `text-ink`, `border-line` 같은 유틸리티 클래스로 만들어준다:
+
+| 토큰 | 역할 | 쓰이는 곳 |
+|---|---|---|
+| `--color-canvas` | 은은한 오프화이트 배경 | 페이지 바탕, 본문 콘텐츠 영역, 표 헤더 행 |
+| `--color-surface` | 순백색 | 상단바·대메뉴바·좌측메뉴·카드·모달·표 본문 (캔버스 위에 "떠 있는" 느낌) |
+| `--color-line` | 테두리 | 모든 구분선 |
+| `--color-ink` / `--color-ink-muted` | 본문 텍스트 / 보조 텍스트 | |
+| `--color-accent` | 인디고, 강한 강조 | 기본 버튼, 대메뉴 활성 탭(선명한 필) |
+| `--color-accent-soft` | 인디고의 옅은 틴트 | 좌측 중/소메뉴 활성 항목(연한 배경 + 좌측 강조선, 대메뉴보다 한 단계 약한 강조) |
+| `--color-accent-ink` | 강조색 위에 올라가는 텍스트 | |
+| `--color-danger` | 위험 동작 | 삭제/비활성화 확인 버튼 |
+
+컴포넌트는 `bg-gray-100`처럼 색을 직접 쓰지 않고 항상 이 의미 기반 클래스를 쓴다 — 나중에 팔레트를 바꿔도 `tokens.css` 한 곳만 고치면 된다. 대메뉴(TopNav)는 `bg-accent`(선명한 필)로, 중/소메뉴(Sidebar)는 `bg-accent-soft`(연한 틴트 + 좌측 강조선)로 활성 상태를 표현해 두 내비게이션 단계가 시각적으로 구분된다.
 
 기본은 **항상 밝은 테마**다(`prefers-color-scheme: dark` 자동 전환 없음). `:root[data-theme='dark']` 규칙은 이미 있으니, 다크모드 토글 버튼을 추가하고 싶으면 그 버튼이 `document.documentElement.dataset.theme`을 `'dark'`/`'light'`로 바꾸게만 하면 된다.
 
