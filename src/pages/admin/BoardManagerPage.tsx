@@ -1,8 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Pencil } from 'lucide-react'
-import { createBoard, deleteBoard, fetchBoards, updateBoard } from '../../features/board/adminApi'
-import type { Board } from '../../types/board'
+import { Plus, Trash2, Pencil, ShieldCheck, X } from 'lucide-react'
+import {
+  createBoard,
+  deleteBoard,
+  fetchBoards,
+  fetchBoardWritePermissions,
+  updateBoard,
+  updateBoardWritePermissions,
+} from '../../features/board/adminApi'
+import { fetchRoles } from '../../features/role/api'
+import { fetchDepts } from '../../features/dept/api'
+import { fetchUsersByIds, searchUsers } from '../../features/user/api'
+import type { Board, BoardWritePermissions } from '../../types/board'
+import type { UserAdmin } from '../../types/user'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -24,6 +35,7 @@ export function BoardManagerPage() {
   const [form, setForm] = useState<BoardFormState>(EMPTY_FORM)
   const [deleteTarget, setDeleteTarget] = useState<Board | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [permissionTarget, setPermissionTarget] = useState<Board | null>(null)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['admin', 'boards'] })
@@ -125,6 +137,15 @@ export function BoardManagerPage() {
                 <td className="px-4 py-2 text-right">
                   <button
                     type="button"
+                    onClick={() => setPermissionTarget(board)}
+                    className="mr-2 text-ink-muted hover:text-ink"
+                    aria-label="쓰기 권한"
+                    title="쓰기 권한"
+                  >
+                    <ShieldCheck size={15} />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openEditForm(board)}
                     className="mr-2 text-ink-muted hover:text-ink"
                     aria-label="수정"
@@ -205,6 +226,183 @@ export function BoardManagerPage() {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.boardId)}
       />
+
+      {permissionTarget && (
+        <WritePermissionModal board={permissionTarget} onClose={() => setPermissionTarget(null)} />
+      )}
     </div>
+  )
+}
+
+const EMPTY_WRITE_PERMISSIONS: BoardWritePermissions = { roleIds: [], deptCodes: [], userIds: [] }
+
+function WritePermissionModal({ board, onClose }: { board: Board; onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const { data: permissions } = useQuery({
+    queryKey: ['admin', 'boards', board.boardId, 'write-permissions'],
+    queryFn: () => fetchBoardWritePermissions(board.boardId),
+  })
+  const { data: roles } = useQuery({ queryKey: ['admin', 'roles'], queryFn: fetchRoles })
+  const { data: depts } = useQuery({ queryKey: ['admin', 'depts'], queryFn: fetchDepts })
+
+  const [selectedUsers, setSelectedUsers] = useState<UserAdmin[]>([])
+  const [userQuery, setUserQuery] = useState('')
+  const { data: userSearchResults } = useQuery({
+    queryKey: ['admin', 'users', 'search-for-board-write-permission', userQuery],
+    queryFn: () => searchUsers(userQuery, 0, 10),
+    enabled: userQuery.trim().length > 0,
+  })
+
+  useEffect(() => {
+    if (permissions && permissions.userIds.length > 0) {
+      fetchUsersByIds(permissions.userIds).then(setSelectedUsers)
+    } else {
+      setSelectedUsers([])
+    }
+  }, [permissions])
+
+  const mutation = useMutation({
+    mutationFn: (next: BoardWritePermissions) => updateBoardWritePermissions(board.boardId, next),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['admin', 'boards', board.boardId, 'write-permissions'], data)
+    },
+  })
+
+  const saving = mutation.isPending
+  const current = permissions ?? EMPTY_WRITE_PERMISSIONS
+  const restricted = current.roleIds.length > 0 || current.deptCodes.length > 0 || current.userIds.length > 0
+
+  function toggleRole(roleId: number) {
+    const roleIds = current.roleIds.includes(roleId)
+      ? current.roleIds.filter((id) => id !== roleId)
+      : [...current.roleIds, roleId]
+    mutation.mutate({ ...current, roleIds })
+  }
+
+  function toggleDept(dept: string) {
+    const deptCodesNext = current.deptCodes.includes(dept)
+      ? current.deptCodes.filter((d) => d !== dept)
+      : [...current.deptCodes, dept]
+    mutation.mutate({ ...current, deptCodes: deptCodesNext })
+  }
+
+  function addUser(user: UserAdmin) {
+    if (current.userIds.includes(user.userId)) return
+    mutation.mutate({ ...current, userIds: [...current.userIds, user.userId] })
+    setSelectedUsers((prev) => [...prev, user])
+    setUserQuery('')
+  }
+
+  function removeUser(userId: number) {
+    mutation.mutate({ ...current, userIds: current.userIds.filter((id) => id !== userId) })
+    setSelectedUsers((prev) => prev.filter((u) => u.userId !== userId))
+  }
+
+  return (
+    <Modal title={`'${board.boardName}' 쓰기 권한`} open onClose={onClose}>
+      <div className="flex max-h-[70vh] flex-col gap-5 overflow-y-auto">
+        <p className="text-sm text-ink-muted">
+          {restricted
+            ? '체크한 대상만 이 게시판에 글을 쓸 수 있습니다. 그 외 사용자는 읽기만 가능합니다.'
+            : '아무것도 선택하지 않으면 이 게시판을 볼 수 있는 모든 사용자가 글을 쓸 수 있습니다.'}
+        </p>
+
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">역할</h3>
+          <div className="flex flex-col gap-1.5">
+            {(roles ?? []).length === 0 && <p className="text-sm text-ink-muted">등록된 역할이 없습니다.</p>}
+            {roles?.map((role) => (
+              <label key={role.roleId} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={current.roleIds.includes(role.roleId)}
+                  onChange={() => toggleRole(role.roleId)}
+                  disabled={saving}
+                />
+                {role.roleName} <span className="text-ink-muted">({role.roleCode})</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">부서</h3>
+          <div className="flex flex-col gap-1.5">
+            {(depts ?? []).length === 0 && (
+              <p className="text-sm text-ink-muted">등록된 부서가 없습니다. 부서 관리에서 먼저 추가하세요.</p>
+            )}
+            {depts?.map((dept) => (
+              <label key={dept.deptCode} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={current.deptCodes.includes(dept.deptCode)}
+                  onChange={() => toggleDept(dept.deptCode)}
+                  disabled={saving}
+                />
+                {dept.deptName} <span className="text-ink-muted">({dept.deptCode})</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">개인</h3>
+          <input
+            value={userQuery}
+            onChange={(e) => setUserQuery(e.target.value)}
+            placeholder="아이디 또는 이름으로 검색"
+            className="mb-2 w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          {userQuery.trim().length > 0 && (
+            <div className="mb-2 max-h-32 overflow-y-auto rounded-md border border-line">
+              {(userSearchResults?.content.length ?? 0) === 0 ? (
+                <p className="p-2 text-sm text-ink-muted">검색 결과가 없습니다.</p>
+              ) : (
+                userSearchResults!.content.map((user) => (
+                  <button
+                    key={user.userId}
+                    type="button"
+                    onClick={() => addUser(user)}
+                    disabled={saving}
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-canvas disabled:opacity-50"
+                  >
+                    <span>
+                      {user.userName} <span className="text-ink-muted">({user.loginId})</span>
+                    </span>
+                    <Plus size={13} className="text-ink-muted" />
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            {selectedUsers.length === 0 && <p className="text-sm text-ink-muted">선택된 개인이 없습니다.</p>}
+            {selectedUsers.map((user) => (
+              <div
+                key={user.userId}
+                className="flex items-center justify-between rounded-md bg-canvas px-3 py-1.5 text-sm"
+              >
+                <span>
+                  {user.userName} <span className="text-ink-muted">({user.loginId})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeUser(user.userId)}
+                  disabled={saving}
+                  aria-label="선택 해제"
+                  className="text-ink-muted hover:text-danger disabled:opacity-50"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {mutation.isError && (
+          <p className="text-sm text-danger">저장에 실패했습니다. 잠시 후 다시 시도해주세요.</p>
+        )}
+      </div>
+    </Modal>
   )
 }

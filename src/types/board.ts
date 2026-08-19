@@ -4,6 +4,13 @@ export interface Board {
   boardName: string
   description: string | null
   menuId: number
+  canWrite: boolean
+}
+
+export interface BoardWritePermissions {
+  roleIds: number[]
+  deptCodes: string[]
+  userIds: number[]
 }
 
 export interface BoardCreateInput {
@@ -56,6 +63,7 @@ export interface PostDetail {
   comments: Comment[]
   canEdit: boolean
   canDelete: boolean
+  canWrite: boolean
 }
 
 export interface Page<T> {

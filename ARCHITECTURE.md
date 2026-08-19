@@ -193,3 +193,11 @@ src/
 3. 화면에 보이지 않는 `<a>`를 하나 만들어 그 URL과 원본 파일명을 넣고 코드로 클릭시킨 뒤 바로 치운다.
 
 `BoardPostDetailPage`의 첨부파일 목록은 그래서 `<a>`가 아니라 `<button onClick={() => downloadAttachment(...)}>`다.
+
+### 8.4 쓰기 권한 모달은 `MenuManagerPage`의 권한 모달을 그대로 베꼈다
+
+`BoardManagerPage`의 각 행에 "쓰기 권한"(`ShieldCheck` 아이콘) 버튼이 있고, 누르면 `WritePermissionModal`이 뜬다 — 역할 체크박스(`fetchRoles`), 부서 체크박스(`fetchDepts`), 개인 검색·추가(`searchUsers`/`fetchUsersByIds`)로 구성된 게 `MenuManagerPage`의 `PermissionModal`과 거의 동일한 구조다. 일부러 공통 컴포넌트로 뽑지 않았다 — 대상 엔티티(`boardId` vs `menuId`)와 API(`updateBoardWritePermissions` vs 메뉴 권한 API)만 다를 뿐 겉보기엔 똑같아 보이지만, "이 목록이 비어있을 때의 의미"가 서로 다르다(메뉴 권한은 비어있으면 아무도 못 봄, 게시판 쓰기 권한은 비어있으면 **누구나** 쓸 수 있음 — `portal-backend/ARCHITECTURE.md` 8.2 참고). 이 차이를 안내 문구로만 표현하고 로직은 공유하려 하면 오히려 두 화면 모두에 조건 분기가 생겨 헷갈리므로, 지금은 중복을 감수하고 따로 둔 상태 — 세 번째 유사 화면이 생기면 그때 공통 훅으로 뽑는 걸 고려할 것.
+
+모달 안내 문구가 이 "비어있음 = 열림" 의미를 그대로 담고 있다: 하나라도 체크된 상태면 "체크한 대상만 이 게시판에 글을 쓸 수 있습니다. 그 외 사용자는 읽기만 가능합니다.", 아무것도 체크 안 하면 "아무것도 선택하지 않으면 이 게시판을 볼 수 있는 모든 사용자가 글을 쓸 수 있습니다."로 바뀐다.
+
+`board.canWrite`(게시판 메타)와 `post.canWrite`(게시글 상세)는 백엔드가 로그인 사용자 기준으로 이미 계산해서 내려주는 값이다 — 프런트에서 역할/부서를 직접 비교하지 않는다. `BoardPage`는 이 값으로 "글쓰기" 버튼을, `BoardPostDetailPage`는 댓글 입력 폼을 조건부 렌더링한다(권한이 없으면 "이 게시판은 읽기만 가능합니다." 안내로 대체).

@@ -147,17 +147,21 @@ export function BoardPostDetailPage() {
           {post.comments.length === 0 && <p className="text-sm text-ink-muted">첫 댓글을 남겨보세요.</p>}
         </div>
 
-        <form onSubmit={submitComment} className="mt-4 flex gap-2">
-          <input
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            placeholder="댓글을 입력하세요"
-            className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-          />
-          <Button type="submit" disabled={addCommentMutation.isPending}>
-            등록
-          </Button>
-        </form>
+        {post.canWrite ? (
+          <form onSubmit={submitComment} className="mt-4 flex gap-2">
+            <input
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="댓글을 입력하세요"
+              className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <Button type="submit" disabled={addCommentMutation.isPending}>
+              등록
+            </Button>
+          </form>
+        ) : (
+          <p className="mt-4 text-sm text-ink-muted">이 게시판은 읽기만 가능합니다.</p>
+        )}
       </section>
 
       <ConfirmDialog

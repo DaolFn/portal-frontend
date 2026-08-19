@@ -21,9 +21,11 @@ export function BoardPage() {
     <div>
       <div className="mb-1 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-ink">{board?.boardName}</h1>
-        <Button onClick={() => navigate(`/boards/${boardIdNum}/posts/new`)}>
-          <Plus size={15} /> 글쓰기
-        </Button>
+        {board?.canWrite && (
+          <Button onClick={() => navigate(`/boards/${boardIdNum}/posts/new`)}>
+            <Plus size={15} /> 글쓰기
+          </Button>
+        )}
       </div>
       {board?.description && <p className="mb-4 text-sm text-ink-muted">{board.description}</p>}
 
