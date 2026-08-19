@@ -10,6 +10,10 @@ import { RoleManagerPage } from './pages/admin/RoleManagerPage'
 import { UserManagerPage } from './pages/admin/UserManagerPage'
 import { DeptManagerPage } from './pages/admin/DeptManagerPage'
 import { ErrorLogManagerPage } from './pages/admin/ErrorLogManagerPage'
+import { BoardManagerPage } from './pages/admin/BoardManagerPage'
+import { BoardPage } from './pages/BoardPage'
+import { BoardPostFormPage } from './pages/BoardPostFormPage'
+import { BoardPostDetailPage } from './pages/BoardPostDetailPage'
 import { useAuthStore } from './store/authStore'
 import { refreshAccessToken } from './lib/httpClient'
 
@@ -53,6 +57,11 @@ export default function App() {
         <Route path="admin/users" element={<UserManagerPage />} />
         <Route path="admin/depts" element={<DeptManagerPage />} />
         <Route path="admin/error-logs" element={<ErrorLogManagerPage />} />
+        <Route path="admin/boards" element={<BoardManagerPage />} />
+        <Route path="boards/:boardId" element={<BoardPage />} />
+        <Route path="boards/:boardId/posts/new" element={<BoardPostFormPage />} />
+        <Route path="boards/:boardId/posts/:postId" element={<BoardPostDetailPage />} />
+        <Route path="boards/:boardId/posts/:postId/edit" element={<BoardPostFormPage />} />
         <Route path="*" element={<p className="text-sm text-ink-muted">페이지를 찾을 수 없습니다.</p>} />
       </Route>
     </Routes>

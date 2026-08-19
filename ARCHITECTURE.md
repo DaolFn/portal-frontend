@@ -24,13 +24,15 @@ src/
 │   └── Sidebar.tsx               # 중메뉴/소메뉴 세로 목록 (재귀 렌더링)
 ├── pages/                    # 라우트에 매핑되는 화면
 │   ├── LoginPage.tsx, HomePage.tsx, MyPage.tsx, EmbedPage.tsx
-│   └── admin/{MenuManagerPage, RoleManagerPage, UserManagerPage, DeptManagerPage, ErrorLogManagerPage}.tsx
+│   ├── BoardPage.tsx, BoardPostFormPage.tsx, BoardPostDetailPage.tsx   # 게시판: 목록/작성·수정/상세+댓글
+│   └── admin/{MenuManagerPage, RoleManagerPage, UserManagerPage, DeptManagerPage, ErrorLogManagerPage, BoardManagerPage}.tsx
 ├── features/                 # 백엔드 도메인과 1:1 대응하는 API 함수 + 도메인 전용 로직
 │   ├── auth/api.ts            # login/logout/me
 │   ├── menu/{api, adminApi, menuTree, adminTree}.ts
 │   ├── role/api.ts
 │   ├── dept/api.ts             # 부서 마스터 CRUD — 권한 모달·사용자 폼의 부서 선택도 여기서 가져온다
 │   ├── errorLog/api.ts         # 읽기 전용: 페이징 목록 + 상세(스택 트레이스)
+│   ├── board/{api, adminApi}.ts # api.ts: 게시글/댓글/첨부(사용자용, multipart). adminApi.ts: 게시판 정의 CRUD
 │   └── user/api.ts            # 관리자용 CRUD + 본인 프로필(self-service: fetchMyProfile 등)
 ├── components/                # 여러 페이지에서 재사용하는 순수 UI 조각
 │   ├── Button.tsx, Modal.tsx, ConfirmDialog.tsx, MenuIcon.tsx
@@ -39,7 +41,7 @@ src/
 │   └── queryClient.ts           # React Query 기본 옵션
 ├── store/authStore.ts          # 로그인 세션 (액세스토큰 + 사용자 정보), 메모리에만 존재
 ├── styles/tokens.css            # 테마 CSS 변수 (@theme) — 중립 팔레트 + 인디고 포인트
-└── types/{menu, role, user, dept, errorLog}.ts  # 백엔드 DTO와 대응하는 TS 타입
+└── types/{menu, role, user, dept, errorLog, board}.ts  # 백엔드 DTO와 대응하는 TS 타입
 ```
 
 새 화면을 만들 때 "이건 어디에 두나?"의 기본 규칙: **API 호출 함수는 `features/<도메인>/api.ts`, 화면은 `pages/`, 여러 화면이 같이 쓰는 순수 UI는 `components/`.**
@@ -70,9 +72,11 @@ src/
 
 별도의 "선택된 대메뉴" 상태를 만들지 않았다. 대신 `AppLayout`이 매 렌더마다:
 
-1. `findMenuForPathname(tree, location.pathname)` — 현재 경로에 해당하는 메뉴 노드를 찾는다(`INTERNAL`은 `targetUrl` 일치, `EMBED`는 `/embed/:menuId` 패턴에서 ID 추출).
+1. `findMenuForPathname(tree, location.pathname)` — 현재 경로에 해당하는 메뉴 노드를 찾는다(`INTERNAL`은 `targetUrl` 일치, `EMBED`는 `/embed/:menuId` 패턴에서 ID 추출, 게시판은 `/boards/:boardId` **접두사**로 매치 — 아래 설명).
 2. `findPathToMenu(tree, ...)` — 트리 루트부터 그 노드까지의 조상 경로를 구한다. `path[0]`이 항상 대메뉴다.
 3. `path[0].children`을 `Sidebar`에 넘긴다. `TopNav`에는 `path[0].menuId`를 활성 표시용으로 넘긴다.
+
+게시판 메뉴의 `targetUrl`은 항상 `/boards/{boardId}`(하위 경로 없음)인데, 실제 라우트는 `/boards/:boardId`(목록), `/boards/:boardId/posts/new`, `/boards/:boardId/posts/:postId`, `/boards/:boardId/posts/:postId/edit` 네 개다. `targetUrl === pathname` 정확히 일치 비교로는 목록 화면 말고는 전부 매치가 안 돼서, `findMenuForPathname`은 `/^\/boards\/(\d+)/`로 boardId만 뽑아 `targetUrl === '/boards/' + boardId`인 노드를 찾는다 — 게시글 상세/작성/수정 어느 화면에 있어도 항상 같은 대메뉴가 활성 표시된다.
 
 이렇게 라우트에서 상태를 파생시키면 "뒤로가기/새로고침해도 상단·좌측 메뉴가 항상 현재 위치와 맞다"가 자동으로 보장된다. 새로고침 시 별도 상태 복원 로직이 필요 없다. 이 계산 함수들은 모두 `features/menu/menuTree.ts`에 있다.
 
@@ -165,3 +169,27 @@ src/
 `ErrorLogManagerPage.tsx`는 CRUD가 아니라 **조회만** 하는 관리자 화면의 템플릿이다. 목록(`GET /api/admin/error-logs`)은 발생시각/메소드/경로/사용자/예외타입/메시지만 보여주고 스택 트레이스는 빼서 가볍게 유지하고, 행을 클릭하면 `detailId` state가 세팅되어 상세 쿼리(`GET /api/admin/error-logs/{id}`)가 `enabled: detailId != null`로 발동하며 스택 트레이스 전체를 담은 모달이 뜬다 — 목록 API 응답에 모든 행의 긴 스택 트레이스를 다 실어 보내지 않기 위한 지연 로딩 패턴이다.
 
 스택 트레이스는 폭이 넓고 줄바꿈이 없는 텍스트라 기존 `Modal`의 기본 폭(`max-w-md`)으로는 답답해서, `Modal`에 `wide` prop을 추가했다(`max-w-3xl`로 확장) — 폭이 좁아도 되는 기존 폼 모달들은 그대로 두고, 이 화면만 `<Modal ... wide>`로 옵트인한다.
+
+## 8. 게시판 (`board`)
+
+게시판은 관리자 CRUD(`BoardManagerPage`, `admin/boards`) + 사용자용 화면(`BoardPage`/`BoardPostFormPage`/`BoardPostDetailPage`, `/boards/:boardId/...`) 두 켜로 나뉜다. 백엔드 쪽 설계(게시판=메뉴 1:1 결합, 접근권한=메뉴권한 재사용)는 `portal-backend/ARCHITECTURE.md` 8절 참고 — 여기는 프런트 쪽에서만 특별한 패턴 세 가지.
+
+### 8.1 게시판 CRUD는 메뉴 캐시도 같이 무효화해야 한다
+
+`BoardManagerPage`에서 게시판을 만들거나 이름을 바꾸거나 지우면, 백엔드가 그 즉시 연결된 메뉴도 같이 만들고/이름 바꾸고/지운다(8.1 참고). 그래서 이 화면의 mutation은 `['admin', 'boards']` 하나만 무효화하면 안 되고, `['admin', 'menus']`와 `['menus', 'my']`도 같이 무효화한다 — 안 그러면 게시판을 새로 만들어도 사이드바/메뉴 관리 화면에 새 메뉴가 바로 안 보인다(새로고침해야 보임). `MenuManagerPage`의 모든 mutation이 이미 이 두 키를 같이 무효화하고 있으니, "메뉴 트리에 영향 주는 화면은 이 두 키를 항상 같이 무효화한다"가 이 시점부터 3곳(`MenuManagerPage`, 이제 `BoardManagerPage`)의 공통 규칙이 됐다.
+
+### 8.2 파일 첨부: JSON과 파일을 하나의 `multipart/form-data`로 묶어 보낸다
+
+게시글 생성/수정은 `application/json`이 아니라 `FormData`로 보낸다 — `features/board/api.ts`의 `postFormData()` 헬퍼가 `data` 파트(제목/내용을 JSON 문자열로 감싼 `Blob`, `type: 'application/json'`으로 지정해야 백엔드의 `@RequestPart("data") PostCreateRequest`가 제대로 역직렬화한다)와 `files` 파트(선택된 `File[]`, 0개 이상)를 합쳐 넣는다. `httpClient`에 `Content-Type` 기본값이 없기 때문에(`lib/httpClient.ts` 참고) `FormData`를 바디로 넘기면 axios가 알아서 `multipart/form-data; boundary=...`를 세팅한다 — 별도 헤더 설정 코드가 필요 없다.
+
+수정 화면(`BoardPostFormPage`, edit 모드)에서 기존 첨부파일은 삭제 대상으로 체크만 하고(`removeAttachmentIds`), 새로 고른 파일은 `files`에 추가한다 — 저장 시 이 둘을 한 번에 같은 요청으로 보낸다(부분 삭제 + 부분 추가를 한 PUT으로).
+
+### 8.3 첨부파일 다운로드는 `<a href>`가 아니라 axios + Blob이다
+
+일반 링크(`<a href="/api/boards/.../attachments/1">`)로는 안 된다 — 다운로드 API도 다른 API와 똑같이 `Authorization: Bearer` 헤더가 필요한데, 브라우저가 만드는 순수 네비게이션 요청에는 그 헤더를 실어 보낼 방법이 없다. 그래서 `features/board/api.ts`의 `downloadAttachment()`는:
+
+1. `httpClient.get(..., { responseType: 'blob' })`로 axios를 통해 파일을 받는다(인증 헤더가 인터셉터로 자동으로 붙는다).
+2. 받은 `Blob`을 `URL.createObjectURL()`로 임시 blob URL로 바꾼다.
+3. 화면에 보이지 않는 `<a>`를 하나 만들어 그 URL과 원본 파일명을 넣고 코드로 클릭시킨 뒤 바로 치운다.
+
+`BoardPostDetailPage`의 첨부파일 목록은 그래서 `<a>`가 아니라 `<button onClick={() => downloadAttachment(...)}>`다.

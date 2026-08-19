@@ -33,6 +33,14 @@ export function findMenuForPathname(nodes: MenuNode[], pathname: string): MenuNo
   if (embedMatch) {
     return findMenuById(nodes, Number(embedMatch[1]))
   }
+  // A board's menu.targetUrl is exactly `/boards/{boardId}`, but the actual routes under it
+  // (posts/new, posts/:id, posts/:id/edit) all have extra path segments — match by that fixed
+  // prefix so every board sub-route still highlights the right top-nav/sidebar entry.
+  const boardMatch = pathname.match(/^\/boards\/(\d+)/)
+  if (boardMatch) {
+    const boardTargetUrl = `/boards/${boardMatch[1]}`
+    return flattenMenus(nodes).find((node) => node.menuType === 'INTERNAL' && node.targetUrl === boardTargetUrl)
+  }
   return flattenMenus(nodes).find((node) => node.menuType === 'INTERNAL' && node.targetUrl === pathname)
 }
 

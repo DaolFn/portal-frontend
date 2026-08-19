@@ -9,6 +9,8 @@ import {
   ExternalLink,
   Building2,
   AlertTriangle,
+  ClipboardList,
+  MessageSquare,
   type LucideProps,
 } from 'lucide-react'
 
@@ -23,6 +25,8 @@ const ICONS: Record<string, React.ComponentType<LucideProps>> = {
   'external-link': ExternalLink,
   'building-2': Building2,
   'alert-triangle': AlertTriangle,
+  'clipboard-list': ClipboardList,
+  'message-square': MessageSquare,
 }
 
 interface MenuIconProps extends Omit<LucideProps, 'name'> {
