@@ -35,7 +35,10 @@ export default function App() {
   const setBootstrapping = useAuthStore((s) => s.setBootstrapping)
 
   useEffect(() => {
-    refreshAccessToken().finally(() => setBootstrapping(false))
+    // 백엔드가 응답하지 않는 환경(예: 백엔드 없이 프런트만 배포된 경우)에서 로그인 화면조차
+    // 못 띄우고 무한정 멈추지 않도록, 일정 시간 안에 응답이 없으면 부트스트래핑을 종료한다.
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000))
+    Promise.race([refreshAccessToken(), timeout]).finally(() => setBootstrapping(false))
   }, [setBootstrapping])
 
   return (
